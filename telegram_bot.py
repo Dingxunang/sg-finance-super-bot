@@ -155,7 +155,13 @@ async def ocbc_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
                     # We drop parse_mode="Markdown" on chunks to prevent broken formatting errors if a tag is sliced in half
                     await update.message.reply_text(chunk)
             else:
-                await update.message.reply_text(final_message, parse_mode="Markdown")
+                try:
+                    # Attempt to send with beautiful formatting
+                    await update.message.reply_text(final_message, parse_mode="Markdown")
+                except Exception as parse_error:
+                    # FALLBACK: If Telegram's strict Markdown parser crashes, send as plain text!
+                    print(f"Markdown formatting error bypassed. Sending plain text. Detail: {parse_error}")
+                    await update.message.reply_text(final_message)
             break
 
         except Exception as e:
