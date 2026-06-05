@@ -108,9 +108,53 @@ async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text, parse_mode="Markdown")
 
 async def ocbc_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🌐 Connecting to OCBC servers... Please hold.")
+    await update.message.reply_text("🌐 Scraping live OCBC rates... Please hold.")
     rates_msg = get_ocbc_fd_rates_text()
-    await update.message.reply_text(rates_msg, parse_mode="Markdown")
+
+    # If the scraper failed, just send the error and stop
+    if "❌ OCBC Connection failed" in rates_msg:
+        await update.message.reply_text(rates_msg, parse_mode="Markdown")
+        return
+
+    await update.message.reply_text("🧠 Analyzing the best rate against live macroeconomic data from the internet...")
+
+    # Initialize Gemini
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    client = genai.Client(api_key=gemini_key)
+
+    system_prompt = f"""
+    You are an elite Singapore Wealth Management Advisor.
+    The user has just automatically scraped the following Fixed Deposit (FD) rates from OCBC:
+    {rates_msg}
+
+    ROLE ACTIONS:
+    1. Identify the absolute BEST (highest) interest rate and its required tenure/conditions from the list.
+    2. Perform a live macroeconomic analysis of the current Singapore environment (e.g., MAS monetary policy, US Fed rate trajectories, current SG inflation).
+    3. Compare the best OCBC rate against current alternatives like Singapore 6-month T-Bills or SSB (Singapore Savings Bonds).
+    4. Give a definitive verdict: Should the user lock their cash into this OCBC Fixed Deposit right now, or hold/invest elsewhere?
+    
+    FORMATTING:
+    Use clean Markdown. Keep it punchy, professional, and data-driven.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents="Analyze these OCBC rates and search the web for current SG macroeconomic conditions to give me a recommendation.",
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.3,
+                # THIS ENABLES LIVE INTERNET ACCESS FOR GEMINI
+                tools=[{"google_search": {}}]
+            )
+        )
+
+        # Combine the raw rates with the AI's smart analysis
+        final_message = f"{rates_msg}\n\n{'='*30}\n\n*🤖 AI Financial Analysis:*\n{response.text}"
+        await update.message.reply_text(final_message, parse_mode="Markdown")
+
+    except Exception as e:
+        await update.message.reply_text(f"{rates_msg}\n\n⚠️ Could not complete AI analysis: {e}", parse_mode="Markdown")
 
 async def handle_mortgage_calculation(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
