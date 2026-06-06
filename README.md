@@ -1,17 +1,16 @@
-# SG Mortgage Refinance AI Agent
+# SG Mortgage Refinance & Finance AI Agent
 
-A Telegram-based AI agent designed to help Singaporean homeowners objectively evaluate private home mortgage refinancing options. It fetches live SORA (Singapore Overnight Rate Average) benchmark data from the Monetary Authority of Singapore (MAS) and uses Google's Gemini AI to generate a mathematical comparison between Fixed-Rate and SORA-pegged Floating-Rate packages.
-
----
+A Telegram-based AI agent designed to help Singaporean homeowners objectively evaluate private home mortgage refinancing options and scan for the best savings alternatives. It fetches live SORA (Singapore Overnight Rate Average) benchmark data from the Monetary Authority of Singapore (MAS), scans live promotional banking rates across major institutions, and uses Google's Gemini AI to generate a mathematical comparison and risk-adjusted financial recommendations.
 
 ## 🚀 Features
 
-* **Live Government Data Integration:** Automatically pulls the latest 3-Month Compounded SORA rate directly from the MAS public API.
-* **Pre-Computed Math Accuracy:** Calculates effective floating rates programmatically in Python before passing data to the LLM, preventing AI arithmetic hallucinations.
-* **AI-Powered Analysis:** Uses Google Gemini to format comparisons into clean Markdown tables and provide risk-adjusted recommendations.
-* **24/7 Cloud Availability:** Hosted on Render using Telegram Webhooks, allowing instant access via mobile phone without needing a local server running.
-
----
+*   **Live Government Data Integration:** Automatically pulls the latest 3-Month Compounded SORA rate directly from the MAS public API.
+*   **Multi-Bank FD Scanner:** Leverages Google Search capabilities via Gemini to actively crawl live promotional fixed deposit interest rates across major Singapore banks (DBS, UOB, OCBC, CIMB, RHB, and more).
+*   **Mobile-Optimized UI Layout:** Swaps out wide, wrapping markdown tables for a clean, vertical visual hierarchy specifically designed to prevent horizontal text distortion on mobile screens.
+*   **Pre-Computed Math Accuracy:** Calculates effective floating rates programmatically in Python before passing data to the LLM, preventing AI arithmetic hallucinations.
+*   **AI-Powered Analysis:** Uses Google Gemini to format comparisons, review sovereign bond alternatives (T-Bills/SSB), and provide risk-adjusted recommendations.
+*   **Resilient Bot Design:** Built with automatic message chunking to bypass Telegram’s 4,096-character limit, plain-text fallback handling for entity parsing crashes, and exponential backoff retry logic for API 503 errors.
+*   **24/7 Cloud Availability:** Hosted on Render using Telegram Webhooks, allowing instant access via mobile phone without needing a local server running.
 
 ## 🛠️ Technologies Used
 
@@ -19,35 +18,29 @@ A Telegram-based AI agent designed to help Singaporean homeowners objectively ev
 | :--- | :--- |
 | **Python 3.11** | Core backend logic. |
 | **python-telegram-bot[webhooks]** | Handles incoming messages from the Telegram app and manages the webhook connection. |
-| **google-genai** | Google's official Python SDK to connect to the Gemini API (specifically `gemini-2.5-flash`) for the reasoning engine. |
+| **google-genai** | Google's official Python SDK to connect to the Gemini API (specifically `gemini-2.5-flash`) for the reasoning engine and live web search. |
 | **requests** | Used to ping the MAS Datastore API securely while bypassing basic bot-protection firewalls using User-Agent headers. |
-| **Render.com** | Free cloud hosting platform used to deploy the Python script as a 24/7 web service. |
-
----
+| **Render.com** | Cloud hosting platform used to deploy the Python script as a 24/7 web service. |
 
 ## 🧠 Core Logic & Workflow
 
 Here is exactly how the bot processes a user's request from start to finish:
 
-1. **The Trigger (Telegram Webhook)** The user sends a message to the bot on Telegram in a structured format (e.g., `Loan: 800000, Fixed: 2.85, Spread: 0.65`). The Telegram API sends an HTTP POST request to our Render server via a Webhook, waking up the Python script.
-
-2. **The Data Fetch (MAS API)** Before doing any AI processing, the script executes the `get_latest_sora_rates()` function. It queries the MAS API (`eservices.mas.gov.sg`) to get the absolute latest daily and 3-Month Compounded SORA rates. Fallback mechanisms are built-in just in case the MAS server times out.
-
-3. **The Pre-Computation (Python Math)** LLMs are historically bad at deterministic math. To ensure 100% financial accuracy, the Python script calculates the effective floating rate ($\text{Current 3M SORA} + \text{Bank Spread}$) internally.
-
-4. **The Reasoning Engine (Google Gemini)** The script bundles the user's loan amount, the live MAS data, and the pre-computed math into a strict system prompt. This prompt instructs Gemini to:
-   * Conduct a **"SORA Breakeven" Threshold analysis**.
-   * Build a side-by-side cost estimation using a Markdown table.
-   * Deliver a professional, risk-assessed recommendation based on a 2-year timeline.
-
-5. **The Output (Telegram Delivery)** Gemini returns the formatted text, and the Python script pushes it back to the user's Telegram chat interface.
-
----
+1.  **The Trigger (Telegram Webhook):** The user interacts with the bot via a structured command (`/bank`) or sends a message to the bot on Telegram in a structured mortgage format (e.g., `Loan: 800000`, `Fixed: 2.85`, `Spread: 0.65`). The Telegram API sends an HTTP POST request to our Render server via a Webhook, waking up the Python script.
+2.  **The Data Fetch (MAS API & Live Web Search):** 
+    *   For mortgage queries, the script executes the `get_latest_sora_rates()` function, querying the MAS API (`eservices.mas.gov.sg`) to get the absolute latest daily and 3-Month Compounded SORA rates. Fallback mechanisms are built-in just in case the MAS server times out.
+    *   For banking queries, the agent initializes the Gemini 2.5 Flash model with a target system prompt to execute a live web search for active fixed deposit promotional tiers.
+3.  **The Pre-Computation (Python Math):** LLMs are historically bad at deterministic math. To ensure 100% financial accuracy on mortgage requests, the Python script calculates the effective floating rate (Current 3M SORA + Bank Spread) internally.
+4.  **The Reasoning Engine (Google Gemini):** The script bundles the user's input, the live data feeds, and any pre-computed math into a strict system prompt. This prompt instructs Gemini to:
+    *   Conduct a "SORA Breakeven" Threshold analysis or multi-bank tier breakdown.
+    *   Apply a strict mobile-first layout limit (under 3,000 characters to safely bypass Telegram constraints).
+    *   Deliver a professional, risk-assessed recommendation based on a 2-year timeline.
+5.  **The Output (Telegram Delivery):** Gemini returns the formatted text, and the Python script pushes it back to the user's Telegram chat interface, reverting to a plain-text parsing fallback if the formatting triggers an engine crash.
 
 ## ⚙️ Environment Configuration
 
 To run this project, the following environment variables must be configured in your deployment platform (e.g., Render):
-
-* `TELEGRAM_BOT_TOKEN`: The HTTP API token generated by `@BotFather`.
-* `GEMINI_API_KEY`: The API key generated from Google AI Studio.
-* `PYTHON_VERSION`: Set to `3.11.0` to ensure stable webhook routing.
+*   `TELEGRAM_BOT_TOKEN`: The HTTP API token generated by @BotFather.
+*   `GEMINI_API_KEY`: The API key generated from Google AI Studio.
+*   `PYTHON_VERSION`: Set to 3.11.0 to ensure stable webhook routing.
+*   `RENDER_EXTERNAL_URL`: The public URL of your web service hosting the webhook.
